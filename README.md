@@ -95,6 +95,3 @@ candidate reliability is insufficient.
 The source code is provided for research review and reproducibility.
 No license for reuse, modification, or redistribution is granted at
 this time.
-├── scripts/
-├── requirements.txt
-└── README.md
