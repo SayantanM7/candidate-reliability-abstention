@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Secrets
+.env
+*.pem
+*.key
+
+# Medical imaging / datasets
+*.nii
+*.nii.gz
+*.nrrd
+*.dcm
+
+# Model checkpoints / weights
+*.pth
+*.pt
+*.ckpt
+*.onnx
+
+# Large experiment outputs
+runs/
+outputs/
+checkpoints/
+predictions/
+
+# Temporary files
+*.log
+*.tmp

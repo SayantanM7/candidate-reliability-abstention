@@ -1,0 +1,48 @@
+# All settings used in the paper. Edit only the paths.
+
+paths:
+  nnunet_raw: /path/to/nnUNet_raw/Dataset003_HCCTACE          # imagesTr/<case>_0000.nii.gz, labelsTr/<case>.nii.gz
+  model_folder: /path/to/nnUNet_results/Dataset003_HCCTACE/nnUNetTrainer__nnUNetPlans__3d_fullres_mcdropout
+  work_dir: /path/to/work                                     # one folder per case; outputs are written here
+  results_dir: results
+
+files:                    # per-case files inside work_dir/<case>/
+  mean_prob: mean_prob.nii.gz
+  var_map: var_map.nii.gz
+  stage1: stage1_labels.nii.gz
+  stage2: stage2_labels_fold0.nii.gz          # 1 = HIGH, 2 = LOW
+  portal_vein_mask: portal_vein_mask.nii.gz   # expert annotation provided with HCC-TACE-Seg
+  portal_distance: portal_distance_mm.nii.gz
+
+inference:
+  n_passes: 30
+  fold: 0
+  checkpoint: checkpoint_best.pth             # epoch 295
+  tile_step_size: 0.5
+  use_gaussian: true
+  use_mirroring: true
+
+stage1:
+  foreground_threshold: 0.10
+  gate: 0.80
+  connectivity: 1                             # 1 = 6-connectivity
+
+stage2:
+  # Frozen threshold applied in the paper. The exact F1 optimum on the development
+  # candidates is 0.0192915536 (see calibrate_tau.py); the rounded value below was
+  # applied and only changes the label of one development candidate (HCC_101, blob 1).
+  tau: 0.01929155
+
+evaluation:
+  raw_threshold: 0.5
+  lesion_connectivity: 3                      # 3 = 26-connectivity
+  min_lesion_voxels: 100
+  n_bootstrap: 5000
+  seed: 0
+
+scs:
+  u0: 0.05
+  d_ref_mm: 5.0
+  sigma_mm: 5.0
+  max_score: 10.0
+  coefficients: [1.0, 6.5, 4.0, -2.0]         # R = c0 + c1*P + c2*U_N + c3*P*U_N
