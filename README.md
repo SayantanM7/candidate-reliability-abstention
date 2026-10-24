@@ -3,8 +3,8 @@
 Code and results for a candidate-level reliability flag for automatically generated
 hepatocellular carcinoma (HCC) candidates in contrast-enhanced CT, based on Monte Carlo (MC) Dropout.
 
-**Authors:** Ricky Mundi Da (Independent Researcher, Kolkata, India) and
-Ashish Chundi (Visvesvaraya National Institute of Technology, Nagpur, India).
+**Authors:** Sayantan Mandal (Independent Researcher, Kolkata, India) and
+Ashish Tiwari (Visvesvaraya National Institute of Technology, Nagpur, India).
 The accompanying paper is currently under review.
 
 > Research prototype. HIGH/LOW denotes **model reliability, not HCC probability**.
@@ -51,7 +51,11 @@ clinically validated risk or safety score**.
 | Non-overlapping candidates labelled LOW | 13 / 13 |
 | Local Dice with the reference lesion, median | HIGH 0.82 (n = 14) vs LOW 0.62 (n = 4); exact Mann–Whitney p = 0.008 (exploratory) |
 | Mean Dice in the 14 cases with a HIGH candidate | 0.738 (raw) → 0.746 (Stage 1) → 0.801 (Stage 2) |
+<<<<<<< HEAD
 | Candidate-overlap AUC | variance 0.876 vs maximum probability 0.846 (paired case-level bootstrap of the difference: +0.029, 95% CI −0.064 to 0.118) |
+=======
+| Candidate-overlap AUC | variance 0.876 vs maximum probability 0.846 (paired case-level bootstrap difference +0.028, 95% CI −0.067 to 0.117) |
+>>>>>>> origin/main
 
 The flag trades coverage for reliability: across all 20 cases, mean Dice is 0.616 (raw), 0.631
 (Stage 1) and 0.561 (Stage 2), because the six cases without a HIGH candidate are deferred.
@@ -73,7 +77,10 @@ uncertainty-aware-hcc/
 │   ├── README.md             # exact LiTS pretraining and HCC fine-tuning commands
 │   └── prepare_fine_tuning.py
 ├── code/
+<<<<<<< HEAD
 │   ├── common.py             # parameters, split, paths, NIfTI I/O
+=======
+>>>>>>> origin/main
 │   ├── mc_dropout.py         # 30 passes -> mean_prob.nii.gz, var_map.nii.gz
 │   ├── candidates.py         # Stage 1 and Stage 2
 │   ├── calibrate_tau.py      # F1-maximising threshold on development candidates
@@ -95,11 +102,16 @@ uncertainty-aware-hcc/
 3. **Inference.** `python code/mc_dropout.py` writes `mean_prob.nii.gz` and `var_map.nii.gz` per case.
 4. **Candidates and reliability.** `python code/candidates.py` writes Stage-1 and Stage-2 label maps;
    `python code/calibrate_tau.py` reproduces τ from the development candidates.
+<<<<<<< HEAD
 5. **Evaluation.** `python code/evaluate.py` reproduces the validation results above
    (`--from-csv` recomputes Table 1, local Dice and the AUCs from `results/` without the images).
 6. **Spatial concern.** Place each case's portal-vein annotation in its work folder as `portal_vein_mask.nii.gz`;
    `python code/scs.py` writes the distance maps.
 7. **Prototype.** `python prototype/gui.py`; enter a case ID and a voxel index (i, j, k) read from 3D Slicer.
+=======
+5. **Evaluation.** `python code/evaluate.py` reproduces the validation results above.
+6. **Prototype.** `python prototype/gui.py`; enter a case ID and a voxel index (i, j, k) read from 3D Slicer.
+>>>>>>> origin/main
 
 All thresholds and constants are read from `config/parameters.yaml`.
 Inference was run with nnU-Net v2 (nnunetv2 2.8.1); see `requirements.txt`.
