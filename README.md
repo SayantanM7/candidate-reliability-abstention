@@ -1,4 +1,4 @@
-# candidate-reliability-abstention
+# uncertainty-aware-hcc
 Uncertainty-aware candidate reliability using stochastic prediction, selective abstention, and interpretable spatial assessment.
 
 # Uncertainty-Aware Candidate Reliability
