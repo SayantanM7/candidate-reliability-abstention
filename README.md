@@ -1,97 +1,114 @@
-# uncertainty-aware-hcc
-Uncertainty-aware candidate reliability using stochastic prediction, selective abstention, and interpretable spatial assessment.
+# Knowing When Not to Trust: Uncertainty-Based Abstention for Hepatocellular Carcinoma Candidates in CT
 
-# Uncertainty-Aware Candidate Reliability
+Code and results for a candidate-level reliability flag for automatically generated
+hepatocellular carcinoma (HCC) candidates in contrast-enhanced CT, based on Monte Carlo (MC) Dropout.
 
-Code and research materials for uncertainty-aware candidate reliability
-using stochastic prediction, selective abstention, and interpretable
-spatial assessment.
+**Authors:** Ricky Mundi Da (Independent Researcher, Kolkata, India) and
+Ashish Chundi (Visvesvaraya National Institute of Technology, Nagpur, India).
+The accompanying paper is currently under review.
+
+> Research prototype. HIGH/LOW denotes **model reliability, not HCC probability**.
+> The framework does not diagnose HCC or select treatment.
 
 ## Overview
 
-This repository accompanies the paper:
+Aggregate segmentation accuracy does not show whether an individual predicted tumour can be trusted.
+This framework asks, for each automatically generated candidate, whether it is reliable enough for
+downstream interpretation, and abstains when it is not.
 
-> **Uncertainty-Aware Candidate Reliability and Explainable Spatial
-> Concern Assessment for HCC Tumor Detection in CT**
-
-The framework uses Monte Carlo Dropout to estimate predictive
-uncertainty for automatically generated candidates. Candidates are
-then stratified into HIGH- and LOW-reliability groups using candidate-
-level predictive variance.
-
-HIGH-reliability candidates are retained for downstream spatial
-assessment, while LOW-reliability candidates are explicitly abstained
-and flagged for review rather than being treated as negative
-predictions.
-
-The framework consists of three main stages:
-
-1. **Candidate generation**  
-   Candidate regions are extracted from the mean stochastic prediction.
-
-2. **Reliability stratification**  
-   Candidate-level MC-Dropout variance is used to classify candidates
-   as HIGH or LOW reliability.
-
-3. **Interpretable spatial assessment**  
-   HIGH-reliability candidates can be evaluated using an
-   expert-anchored Spatial Concern Score (SCS), combining local
-   uncertainty with spatial proximity information.
+1. **Candidate generation (Stage 1).** An nnU-Net with Dropout3d produces mean probability and
+   variance maps from 30 stochastic passes; candidates are connected components of the mean map.
+2. **Reliability (Stage 2).** Each candidate is labelled **HIGH** or **LOW** by its mean variance.
+   LOW candidates are an **abstention**: they stay visible for review and are not treated as non-tumour.
+3. **Spatial concern (HIGH only).** An expert-anchored Spatial Concern Score (SCS) combines local
+   uncertainty with portal-vein proximity. LOW candidates receive no score.
+4. **Interpretable prototype.** A Tkinter interface reports, for a queried voxel, the reliability
+   label, local variance, portal-vein distance and, for HIGH candidates, the SCS with an explanation.
 
 ## Method
 
-The inference pipeline performs 30 stochastic forward passes with
-Dropout3d active at inference time. For each voxel, the mean prediction
-and population variance are computed.
+| Step | Setting |
+|---|---|
+| Data | HCC-TACE-Seg, 100 cases, binary tumour label; nnU-Net fold 0: 80 development, 20 validation cases |
+| Network | nnU-Net v2, 3D full resolution, 128³ patches, 2.5 × 0.78 × 0.78 mm |
+| Training | Pretrained on LiTS (binary tumour label, no dropout); fine-tuned on the 80 development cases with Dropout3d (p = 0.2), configuration `3d_fullres_mcdropout`; checkpoint epoch 295 |
+| Inference | 30 passes with all 22 Dropout3d layers active, mirroring and Gaussian blending; mean probability p̄ and population variance U |
+| Stage 1 | p̄ ≥ 0.10, 6-connected components, keep a component if max p̄ ≥ 0.80 |
+| Stage 2 | HIGH if the candidate's mean variance ≤ τ = 0.01929155, otherwise LOW; τ maximised F1 for tumour overlap over the 132 in-sample development candidates and was frozen before validation |
+| SCS (HIGH only) | U_N = U / (U + 0.05); P = 1 for D ≤ 5 mm, else exp(−(D − 5)/5); R = 1 + 6.5P + 4U_N − 2PU_N, and R = 10 for D ≤ 5 mm |
 
-Candidates are generated using:
+D is the 3D distance (mm) from the queried voxel to the expert portal-vein annotation provided with
+HCC-TACE-Seg (not predicted by the network). The SCS coefficients reproduce four concern ratings given
+by an interventional radiologist; the score is an interpretable prioritisation measure, **not a
+clinically validated risk or safety score**.
 
-- mean foreground probability threshold: `0.10`
-- 6-connected components
-- maximum candidate probability threshold: `0.80`
+## Results (20 validation cases, 31 candidates)
 
-Candidate reliability is determined from mean predictive variance.
-The reliability threshold was selected using development data and
-frozen before validation.
+| Measure | Result |
+|---|---|
+| HIGH candidates overlapping tumour | 14 / 14 (100%; exact 95% CI 76.8–100%) |
+| LOW candidates overlapping tumour | 4 / 17 (23.5%) |
+| Non-overlapping candidates labelled LOW | 13 / 13 |
+| Local Dice with the reference lesion, median | HIGH 0.82 (n = 14) vs LOW 0.62 (n = 4); exact Mann–Whitney p = 0.008 (exploratory) |
+| Mean Dice in the 14 cases with a HIGH candidate | 0.738 (raw) → 0.746 (Stage 1) → 0.801 (Stage 2) |
+| Candidate-overlap AUC | variance 0.876 vs maximum probability 0.846 (paired case-level bootstrap difference +0.028, 95% CI −0.067 to 0.117) |
 
-LOW-reliability candidates represent **abstention**, not rejection or
-a negative diagnosis.
+The flag trades coverage for reliability: across all 20 cases, mean Dice is 0.616 (raw), 0.631
+(Stage 1) and 0.561 (Stage 2), because the six cases without a HIGH candidate are deferred.
+Variance is treated as a complementary reliability signal, not a superior detector.
+Results are preliminary (small internal cohort); external validation is future work.
 
-## Key Results
+## Repository structure
 
-On the internal validation cohort:
+```
+uncertainty-aware-hcc/
+├── README.md
+├── LICENSE
+├── requirements.txt
+├── config/
+│   ├── split.json            # nnU-Net fold-0 split (80 development / 20 validation)
+│   ├── nnunet_plans.json     # plans incl. 3d_fullres_mcdropout (Dropout3d, p = 0.2)
+│   └── parameters.yaml       # all thresholds and SCS constants used in the paper
+├── training/
+│   ├── README.md             # exact LiTS pretraining and HCC fine-tuning commands
+│   └── prepare_fine_tuning.py
+├── code/
+│   ├── mc_dropout.py         # 30 passes -> mean_prob.nii.gz, var_map.nii.gz
+│   ├── candidates.py         # Stage 1 and Stage 2
+│   ├── calibrate_tau.py      # F1-maximising threshold on development candidates
+│   ├── evaluate.py           # Table 1, local Dice, Mann–Whitney, AUCs, paired bootstrap
+│   └── scs.py                # portal-vein distance map, U_N, P(D), SCS
+├── prototype/
+│   └── gui.py                # Tkinter interface
+└── results/
+    ├── candidate_table_all.csv   # all 163 candidates (132 development, 31 validation)
+    └── pair_table.csv            # validation lesion–candidate pairs (local Dice)
+```
 
-- 31 candidates were generated.
-- 14 candidates were classified as HIGH reliability.
-- All 14 HIGH candidates overlapped reference tumors.
-- 4 of 17 LOW candidates overlapped reference tumors.
-- HIGH candidates had higher local boundary agreement than LOW
-  candidates:
-  - HIGH median Dice: `0.82`
-  - LOW median Dice: `0.62`
-  - exploratory Mann--Whitney `p = 0.008`
+## Usage
 
-MC-Dropout variance achieved an overlap AUC of `0.876`, compared with
-`0.846` for maximum tumor probability. The difference was not
-statistically significant; therefore, uncertainty is treated as a
-complementary reliability signal rather than a superior detection
-criterion.
+1. **Data.** Download HCC-TACE-Seg from The Cancer Imaging Archive
+   (doi:10.7937/TCIA.5FNA-0924) and LiTS. Images and masks are not redistributed here.
+2. **Training.** Follow `training/README.md` (LiTS pretraining, plan alignment, fine-tuning with
+   `3d_fullres_mcdropout`).
+3. **Inference.** `python code/mc_dropout.py` writes `mean_prob.nii.gz` and `var_map.nii.gz` per case.
+4. **Candidates and reliability.** `python code/candidates.py` writes Stage-1 and Stage-2 label maps;
+   `python code/calibrate_tau.py` reproduces τ from the development candidates.
+5. **Evaluation.** `python code/evaluate.py` reproduces the validation results above.
+6. **Prototype.** `python prototype/gui.py`; enter a case ID and a voxel index (i, j, k) read from 3D Slicer.
 
-## Spatial Concern Assessment
+All thresholds and constants are read from `config/parameters.yaml`.
+Inference was run with nnU-Net v2 (nnunetv2 2.8.1); see `requirements.txt`.
 
-For HIGH-reliability candidates, the Spatial Concern Score combines
-normalized local uncertainty with spatial proximity to the portal
-vein.
+## Citation
 
-The SCS is an **expert- and literature-informed research prototype**.
-It is not a clinically calibrated risk or safety score.
+If you use this code, please cite the accompanying paper (citation details will be added after review).
 
-LOW-reliability candidates do not receive an SCS. The framework
-explicitly abstains to avoid assigning a quantitative score when
-candidate reliability is insufficient.
+## Acknowledgements
+
+We thank an interventional radiologist for the expert ratings used to anchor the spatial concern
+score, and a medical oncologist for clinical guidance.
 
 ## License
 
-The source code is provided for research review and reproducibility.
-No license for reuse, modification, or redistribution is granted at
-this time.
+This project is released under the [MIT License](LICENSE).
